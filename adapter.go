@@ -28,13 +28,23 @@ type Adapter struct {
 	driverName     string
 	dataSourceName string
 	db             *sql.DB
+	dbSpecified    bool
 }
 
 // NewAdapter is the constructor for Adapter.
-func NewAdapter(driverName string, dataSourceName string) *Adapter {
+func NewAdapter(driverName string, dataSourceName string, dbSpecified ...bool) *Adapter {
 	a := Adapter{}
 	a.driverName = driverName
 	a.dataSourceName = dataSourceName
+
+	if len(dbSpecified) == 0 {
+		a.dbSpecified = false
+	} else if len(dbSpecified) == 1 {
+		a.dbSpecified = dbSpecified[0]
+	} else {
+		panic(errors.New("invalid parameter: dbSpecified"))
+	}
+
 	return &a
 }
 
@@ -50,16 +60,24 @@ func (a *Adapter) createDatabase() error {
 }
 
 func (a *Adapter) open() {
-	if err := a.createDatabase(); err != nil {
-		panic(err)
-	}
 
-	db, err := sql.Open(a.driverName, a.dataSourceName+"casbin")
-	if err != nil {
-		panic(err)
-	}
+	if a.dbSpecified {
+		db, err := sql.Open(a.driverName, a.dataSourceName)
+		if err != nil {
+			panic(err)
+		}
+		a.db = db
+	} else {
+		if err := a.createDatabase(); err != nil {
+			panic(err)
+		}
 
-	a.db = db
+		db, err := sql.Open(a.driverName, a.dataSourceName+"casbin")
+		if err != nil {
+			panic(err)
+		}
+		a.db = db
+	}
 
 	a.createTable()
 }
@@ -101,12 +119,12 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 
 	var (
 		ptype string
-		v0    string
-		v1    string
-		v2    string
-		v3    string
-		v4    string
-		v5    string
+		v0    sql.NullString
+		v1    sql.NullString
+		v2    sql.NullString
+		v3    sql.NullString
+		v4    sql.NullString
+		v5    sql.NullString
 	)
 
 	rows, err := a.db.Query("select * from policy")
@@ -115,29 +133,29 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err := rows.Scan(&ptype, &v1, &v2, &v3, &v4)
+		err := rows.Scan(&ptype, &v0, &v1, &v2, &v3, &v4, &v5)
 		if err != nil {
 			return err
 		}
 
 		line := ptype
-		if v0 != "" {
-			line += ", " + v0
+		if v0.Valid {
+			line += ", " + v0.String
 		}
-		if v1 != "" {
-			line += ", " + v1
+		if v1.Valid {
+			line += ", " + v1.String
 		}
-		if v2 != "" {
-			line += ", " + v2
+		if v2.Valid {
+			line += ", " + v2.String
 		}
-		if v3 != "" {
-			line += ", " + v3
+		if v3.Valid {
+			line += ", " + v3.String
 		}
-		if v4 != "" {
-			line += ", " + v4
+		if v4.Valid {
+			line += ", " + v4.String
 		}
-		if v5 != "" {
-			line += ", " + v5
+		if v5.Valid {
+			line += ", " + v5.String
 		}
 
 		loadPolicyLine(line, model)
@@ -147,10 +165,13 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 }
 
 func (a *Adapter) writeTableLine(stm *sql.Stmt, ptype string, rule []string) error {
-	params := make([]string, 7)
-	params = append(params, ptype)
-	for i, v := range rule {
-		params[i] = v
+	params := make([]interface{}, 7)
+	idx := 0
+	params[idx] = ptype
+	idx++
+	for _, v := range rule {
+		params[idx] = v
+		idx++
 	}
 	if _, err := stm.Exec(params...); err != nil {
 		return err
