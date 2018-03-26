@@ -18,9 +18,8 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
-
 	"github.com/casbin/casbin/model"
-	_ "github.com/lib/pq" // This is for MySQL initialization.
+	_ "github.com/lib/pq" // This is for MySQL initialization.git
 	"strconv"
 )
 
