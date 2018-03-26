@@ -103,17 +103,17 @@ func testAutoSave(t *testing.T, driverName string, dataSourceName string, dbSpec
 
 	// Because AutoSave is enabled, the policy change not only affects the policy in Casbin enforcer,
 	// but also affects the policy in the storage.
-	//e.AddPolicy("alice", "data1", "write")
-	//// Reload the policy from the storage to see the effect.
-	//e.LoadPolicy()
-	//// The policy has a new rule: {"alice", "data1", "write"}.
-	//testGetPolicy(t, e, [][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}, {"alice", "data1", "write"}})
-	//
-	//// Remove the added rule.
-	//e.RemovePolicy("alice", "data1", "write")
-	//e.LoadPolicy()
-	//testGetPolicy(t, e, [][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}})
-	//
+	e.AddPolicy("alice", "data1", "write")
+	// Reload the policy from the storage to see the effect.
+	e.LoadPolicy()
+	// The policy has a new rule: {"alice", "data1", "write"}.
+	testGetPolicy(t, e, [][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}, {"alice", "data1", "write"}})
+
+	// Remove the added rule.
+	e.RemovePolicy("alice", "data1", "write")
+	e.LoadPolicy()
+	testGetPolicy(t, e, [][]string{{"alice", "data1", "read"}, {"bob", "data2", "write"}, {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"}})
+
 	//// Remove "data2_admin" related policy rules via a filter.
 	//// Two rules: {"data2_admin", "data2", "read"}, {"data2_admin", "data2", "write"} are deleted.
 	//e.RemoveFilteredPolicy(0, "data2_admin")
@@ -125,6 +125,7 @@ func testAutoSave(t *testing.T, driverName string, dataSourceName string, dbSpec
 func TestAdapters(t *testing.T) {
 	// You can also use the following way to use an existing DB "abc":
 	// testSaveLoad(t, "mysql", "root:@tcp(127.0.0.1:3306)/abc", true)
+
 	testSaveLoad(t, "postgres", "dbname=postgres user=vinayams host=127.0.0.1 port=5432 sslmode=disable", true)
 	testAutoSave(t, "postgres", "dbname=postgres user=vinayams host=127.0.0.1 port=5432 sslmode=disable", true)
 

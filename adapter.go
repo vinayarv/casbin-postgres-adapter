@@ -21,6 +21,7 @@ import (
 
 	"github.com/casbin/casbin/model"
 	_ "github.com/lib/pq" // This is for MySQL initialization.
+	"strconv"
 )
 
 // Adapter represents the MySQL adapter for policy storage.
@@ -212,11 +213,48 @@ func (a *Adapter) SavePolicy(model model.Model) error {
 }
 
 func (a *Adapter) AddPolicy(sec string, ptype string, policy []string) error {
-	return errors.New("not implemented")
+	a.open()
+	defer a.close()
+
+	stm, err := a.db.Prepare("insert into policy values($1, $2, $3, $4, $5, $6, $7)")
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	if err = a.writeTableLine(stm, ptype, policy); err != nil{
+		return err
+	}
+	return err
 }
 
 func (a *Adapter) RemovePolicy(sec string, ptype string, policy []string) error {
-	return errors.New("not implemented")
+
+	a.open()
+	defer a.close()
+
+	statement := "DELETE FROM policy WHERE ptype = $1"
+	for i, _ := range policy {
+		statement += " AND v" + strconv.Itoa(i) + " = $"+ strconv.Itoa(i+2)
+	}
+
+	stm, err := a.db.Prepare(statement)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	params := make([]interface{}, len(policy)+1)
+	params[0] = ptype
+	for i, v := range policy {
+		params[i+1] = v
+	}
+
+	if _, err := stm.Exec(params...); err != nil {
+		return err
+	}
+
+	return err
 }
 
 func (a *Adapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
